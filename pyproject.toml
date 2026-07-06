@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "human-intervention-mcp"
+version = "0.1.0"
+description = "An MCP server that lets agents synchronously request human input through local browser tabs."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Human Intervention MCP contributors" }]
+keywords = ["mcp", "browser", "ai-agents", "human-in-the-loop", "operator"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = [
+  "mcp>=1.20.0",
+  "pydantic>=2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.16.0",
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.25.0",
+  "ruff>=0.8.0",
+]
+
+[project.scripts]
+human-intervention-mcp = "human_intervention_mcp.app:main"
+
+[project.urls]
+Homepage = "https://github.com/mhmdibrahimm/human-intervention-mcp"
+Issues = "https://github.com/mhmdibrahimm/human-intervention-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/human_intervention_mcp"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "S", "T20", "RUF"]
+ignore = [
+  "S101",
+  "S105",
+  "S106",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+warn_unused_configs = true
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["mcp.*"]
+ignore_missing_imports = true

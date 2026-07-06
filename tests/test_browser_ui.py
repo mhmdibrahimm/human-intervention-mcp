@@ -5,10 +5,13 @@ from urllib.parse import urlencode, urlsplit
 
 import pytest
 
+import human_intervention_mcp.browser_ui as browser_ui
 from human_intervention_mcp.browser_ui import (
     BrowserLaunchError,
+    _default_browser_opener,
     _render_human_action_page,
     _submitted_page,
+    browser_launcher_description,
     present_human_action,
     present_operator_question,
 )
@@ -172,6 +175,31 @@ def test_submitted_page_attempts_to_close_tab() -> None:
     page = _submitted_page()
     assert "window.close()" in page
     assert "blocked automatic closing" in page
+
+
+def test_default_browser_opener_uses_command_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(browser_ui.webbrowser, "open", lambda *args, **kwargs: False)
+    monkeypatch.setattr(browser_ui, "_fallback_browser_commands", lambda url: [["xdg-open", url]])
+    monkeypatch.setattr(
+        browser_ui,
+        "_run_browser_command",
+        lambda command: command[0] == "xdg-open",
+    )
+    assert _default_browser_opener("http://127.0.0.1/")
+
+
+def test_browser_launcher_description_uses_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    def raise_error() -> object:
+        raise browser_ui.webbrowser.Error("could not locate runnable browser")
+
+    monkeypatch.setattr(browser_ui.webbrowser, "get", raise_error)
+    monkeypatch.setattr(browser_ui, "_platform_name", lambda: "linux")
+    monkeypatch.setattr(
+        browser_ui.shutil,
+        "which",
+        lambda name: f"/usr/bin/{name}" if name == "xdg-open" else None,
+    )
+    assert browser_launcher_description() == "/usr/bin/xdg-open http://127.0.0.1/"
 
 
 async def _wait_for_url(urls: list[str]) -> None:

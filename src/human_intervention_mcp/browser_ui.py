@@ -3,7 +3,11 @@ from __future__ import annotations
 import asyncio
 import base64
 import html
+import os
+import platform
 import secrets
+import shutil
+import subprocess
 import webbrowser
 from collections.abc import Callable
 from typing import Any, cast
@@ -114,7 +118,71 @@ async def _serve_operation(
 
 
 def _default_browser_opener(url: str) -> bool:
-    return bool(webbrowser.open(url, new=2, autoraise=True))
+    try:
+        if webbrowser.open(url, new=2, autoraise=True):
+            return True
+    except webbrowser.Error:
+        pass
+    if _platform_name() == "windows" and hasattr(os, "startfile"):
+        try:
+            os.startfile(url)  # noqa: S606
+        except OSError:
+            pass
+        else:
+            return True
+    for command in _fallback_browser_commands(url):
+        if _run_browser_command(command):
+            return True
+    return False
+
+
+def browser_launcher_description() -> str | None:
+    try:
+        return webbrowser.get().name
+    except webbrowser.Error:
+        pass
+    commands = _fallback_browser_commands("http://127.0.0.1/")
+    for command in commands:
+        executable = shutil.which(command[0])
+        if executable:
+            return " ".join([executable, *command[1:]])
+    if _platform_name() == "windows" and hasattr(os, "startfile"):
+        return "os.startfile"
+    return None
+
+
+def _fallback_browser_commands(url: str) -> list[list[str]]:
+    platform_name = _platform_name()
+    if platform_name == "darwin":
+        return [["open", url]]
+    if platform_name == "linux":
+        return [
+            ["xdg-open", url],
+            ["gio", "open", url],
+            ["sensible-browser", url],
+        ]
+    return []
+
+
+def _platform_name() -> str:
+    return platform.system().lower()
+
+
+def _run_browser_command(command: list[str]) -> bool:
+    executable = shutil.which(command[0])
+    if not executable:
+        return False
+    try:
+        completed = subprocess.run(  # noqa: S603
+            [executable, *command[1:]],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return completed.returncode == 0
 
 
 async def _read_http_request(reader: asyncio.StreamReader) -> dict[str, Any]:

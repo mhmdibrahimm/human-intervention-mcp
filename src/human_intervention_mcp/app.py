@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
-import webbrowser
 from pathlib import Path
 from typing import Any
 
+from human_intervention_mcp.browser_ui import browser_launcher_description
 from human_intervention_mcp.config import AppConfig, ConfigError, load_config
 from human_intervention_mcp.transports.stdio import run_stdio
 from human_intervention_mcp.transports.streamable_http import run_streamable_http
@@ -69,11 +69,11 @@ def add_common_options(parser: argparse.ArgumentParser) -> None:
 async def run_doctor(config: AppConfig, *, mcp_timeout_sec: int | None = None) -> int:
     checks: list[tuple[str, bool, str]] = []
     checks.append(("config", True, "valid"))
-    try:
-        browser_controller = webbrowser.get()
-        checks.append(("browser launcher", True, browser_controller.name))
-    except webbrowser.Error as exc:
-        checks.append(("browser launcher", False, str(exc)))
+    browser_launcher = browser_launcher_description()
+    if browser_launcher is None:
+        checks.append(("browser launcher", False, "could not locate runnable browser"))
+    else:
+        checks.append(("browser launcher", True, browser_launcher))
     if mcp_timeout_sec is None:
         checks.append(
             (
